@@ -26,8 +26,7 @@ import datetime
 #these models are better for long-term predictions whereby they do not take into consideration trends. Trends can be factored in using another algorithm ive been thinking of where we can demark changes in
 #the stocks behavior by looking at abnormal changes in volatility through hypothesis testing, then using this demarkation to determine the training data's timeframe, or even take a time based weighted average through multiple demarkations
 
-### ADD sensitivity toggling based on market capitalization and len(abnormality periods) AND/OR Training period toggling based on volatility
-
+### ADD sensitivity toggling based on volatility, pltr works well with 1.1, MSFT with 5
 def ConvertToDateObj(DateString):
     lillist=DateString.split('-')
     year,month,day=int(lillist[0]),int(lillist[1]),int(lillist[2])
@@ -41,10 +40,10 @@ def AbnormalSplit(SepList):
         if i==True and counter>threshold:
             SepLenList.append(counter)
             counter=1
-            print('break')
+            #print('break')
         else:
             counter=counter+1
-            print(counter)
+            #print(counter)
     if sum(SepLenList)!=len(SepList):
         SepLenList.append(counter)
     return SepLenList
@@ -68,7 +67,7 @@ def Splitter(TargetList,SepLenList,df):
         dflist.append(tempdf)
     return dflist
 
-predictiondate='2022-09-06'
+predictiondate='2022-08-05'
 predictionperiod=30
 trainingperiod=600
 ticker="MSFT"
@@ -78,7 +77,7 @@ endtrainingperiod=ConvertToDateObj(predictiondate)-datetime.timedelta(days=predi
 starttrainingperiod=endtrainingperiod-datetime.timedelta(days=trainingperiod)
 
 def TimeWeighting(n):
-    TimeWeightSensitivity=4
+    TimeWeightSensitivity=5
     TimeWeighting=[]
     for int in range(1,n+1):
         TimeWeighting.append(1/(TimeWeightSensitivity**int))
@@ -115,12 +114,12 @@ def TimeWeightedData(listofdfs):
                 floater=priorfloater
             priorfloater=floater
             templist.append(floater*Weighting[counter])
-            print(floater,Weighting[counter])
+            #print(floater,Weighting[counter])
             counter=counter+1
         
-        print(templist)
+        #print(templist)
         entry=sum(templist)
-        print(entry)
+        #print(entry)
         keyvalues.append(entry)
     return keyvalues[0],keyvalues[1],keyvalues[2],keyvalues[3]
 
@@ -135,7 +134,7 @@ def GetData():
     df['pctchange']=(df.Close-df.Open)/df.Open
     pctchange=df['pctchange'].to_list()
     interval=st.norm.interval(confidence=0.999999999, loc=np.mean(pctchange), scale=st.sem(pctchange))
-    print(interval)
+    #print(interval)
     df['abnormal?']=(df['pctchange']<interval[0]) | (df['pctchange']>interval[1])
     abnormallist=df['abnormal?'].to_list()
     fulldf=df
@@ -150,7 +149,7 @@ def GetData():
     neglist=df2['pctchange'].to_list()
     df2=fulldf.loc[fulldf['pctchange']>=0]
     poslist=df2['pctchange'].to_list()
-    print('it ran')
+    
     gluelist=[]
     for x in pctchange:
         if x <0:
@@ -179,12 +178,12 @@ def GetData():
                 BearGlue.append(BearStickiness)
                 BearStickiness=2
         counter=counter+1
-    print(BearGlue,BullGlue)
+    #print(BearGlue,BullGlue)
     BearGlueDuration=round(np.mean(BearGlue),0)
     BearGlueContagion=len(BearGlue)/len(neglist)
     BullGlueDuration=round(np.mean(BullGlue),0)
     BullGlueContagion=len(BullGlue)/len(poslist)
-
+    print('it ran')
     return lastofem,averageincrease+1,averagedecrease+1,increaserate,decreaserate,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf,datelist,abnormallist,df
 
 
@@ -303,7 +302,19 @@ def LongRun(passes,endtime):
     plt.show()
     plt.hist(lastitemlist)
     plt.show()
-    print(np.mean(lastitemlist),' on ',predictiondate,' using ',predictionperiod,' days blinded with last known price being ',pricetime0)
+    df=df.loc[df['Date']==predictiondate]
+    High=df['High'].to_list()[0]
+    Low=df['Low'].to_list()[0]
+    Result=np.mean(lastitemlist)
+    if Result>Low and Result<High:
+        Accuracy=1
+    elif Result<Low:
+        Miss=(Low-Result)/Low
+        Accuracy=1-Miss
+    elif Result>High:
+        Miss=(Result-High)/High
+        Accuracy=1-Miss
+    print(Result,' on ',predictiondate,' using ',predictionperiod,' days blinded with last known price being ',pricetime0, 'the price ranged from ',Low,' to ',High,'. Accuracy is ',Accuracy)
 
 LongRun(1000,predictionperiod)
 
