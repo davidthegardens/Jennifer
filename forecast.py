@@ -39,6 +39,18 @@ endtrainingperiod=ConvertToDateObj(predictiondate)-datetime.timedelta(days=predi
 
 starttrainingperiod=endtrainingperiod-datetime.timedelta(days=trainingperiod)
 
+def TimeWeighting(n):
+    TimeWeightSensitivity=2
+    TimeWeighting=[]
+    for int in range(1,n+1):
+        TimeWeighting.append(1/(TimeWeightSensitivity**int))
+    Remainder=(1-sum(TimeWeighting))/n
+    templist=[]
+    for i in TimeWeighting:
+        templist.append(i+Remainder)
+    templist.sort()
+    return templist
+
 def TimeWeightedData(listofdfs):
     avginclist=[]
     avgdeclist=[]
@@ -52,9 +64,21 @@ def TimeWeightedData(listofdfs):
         poslist=df2['pctchange'].to_list()
         avginclist.append(np.mean(poslist))
         avgdeclist.append(np.mean(neglist))
-        incratelist(len(poslist)/len(pctchange))
+        incratelist.append((len(poslist)/len(pctchange)))
         decratelist.append((1-(len(poslist)/len(pctchange))))
-    return avginclist,avgdeclist,incratelist,decratelist
+    keydata=[avginclist,avgdeclist,incratelist,decratelist]
+    keyvalues=[]
+    Weighting=TimeWeighting(len(avginclist))
+    for listy in keydata:
+        counter=0
+        templist=[]
+        for floater in listy:
+            templist.append(floater*Weighting[counter])
+            counter=counter+1
+        keyvalues.append(sum(templist))
+    return keyvalues
+
+
 
 def GetData():
     print('why are u running')
@@ -242,19 +266,6 @@ def LongRun(passes,endtime):
 #LongRun(1000,predictionperiod)
 
 
-
-def TimeWeighting(n):
-    TimeWeightSensitivity=2
-    TimeWeighting=[]
-    for int in range(1,n+1):
-        TimeWeighting.append(1/(TimeWeightSensitivity**int))
-    Remainder=(1-sum(TimeWeighting))/n
-    templist=[]
-    for i in TimeWeighting:
-        templist.append(i+Remainder)
-    templist.sort()
-    return templist
-
 #print(TimeWeighting(5))
 
 TestAbnormalityList=[True,False,False,False,True,False,False,True,True,True,False,False,False,True]
@@ -294,4 +305,4 @@ def Splitter(TargetList,SepLenList,df):
         dflist.append(tempdf)
     return dflist
 
-print(Splitter(datelist,AbnormalSplit(abnormallist),df))
+print(TimeWeightedData(Splitter(datelist,AbnormalSplit(abnormallist),df)))
