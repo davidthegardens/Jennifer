@@ -26,7 +26,7 @@ import datetime
 #these models are better for long-term predictions whereby they do not take into consideration trends. Trends can be factored in using another algorithm ive been thinking of where we can demark changes in
 #the stocks behavior by looking at abnormal changes in volatility through hypothesis testing, then using this demarkation to determine the training data's timeframe, or even take a time based weighted average through multiple demarkations
 
-### ADD sensitivity toggling based on market capitalization and len(abnormality periods)
+### ADD sensitivity toggling based on market capitalization and len(abnormality periods) AND/OR Training period toggling based on volatility
 
 def ConvertToDateObj(DateString):
     lillist=DateString.split('-')
@@ -70,15 +70,15 @@ def Splitter(TargetList,SepLenList,df):
 
 predictiondate='2022-09-06'
 predictionperiod=30
-trainingperiod=300
-ticker="ABNB"
+trainingperiod=600
+ticker="MSFT"
 
 endtrainingperiod=ConvertToDateObj(predictiondate)-datetime.timedelta(days=predictionperiod)
 
 starttrainingperiod=endtrainingperiod-datetime.timedelta(days=trainingperiod)
 
 def TimeWeighting(n):
-    TimeWeightSensitivity=10
+    TimeWeightSensitivity=4
     TimeWeighting=[]
     for int in range(1,n+1):
         TimeWeighting.append(1/(TimeWeightSensitivity**int))
@@ -111,11 +111,16 @@ def TimeWeightedData(listofdfs):
         counter=0
         templist=[]
         for floater in listy:
+            if np.isnan(floater):
+                floater=priorfloater
+            priorfloater=floater
             templist.append(floater*Weighting[counter])
+            print(floater,Weighting[counter])
             counter=counter+1
+        
+        print(templist)
         entry=sum(templist)
-        if np.isnan(entry):
-            entry=0
+        print(entry)
         keyvalues.append(entry)
     return keyvalues[0],keyvalues[1],keyvalues[2],keyvalues[3]
 
@@ -185,7 +190,6 @@ def GetData():
 
 
 pricetime0,avgincrease,avgdecrease,increaseprobability,decreaseprobability,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf,datelist,abnormallist,df=GetData()
-print('pricetime0->',pricetime0,avgincrease,avgdecrease,increaseprobability,decreaseprobability,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf,datelist,abnormallist,df)
 #print(BullGlueContagion,BearGlueContagion)
 #print(GetData())
 
@@ -299,7 +303,7 @@ def LongRun(passes,endtime):
     plt.show()
     plt.hist(lastitemlist)
     plt.show()
-    print(np.mean(lastitemlist))
+    print(np.mean(lastitemlist),' on ',predictiondate,' using ',predictionperiod,' days blinded with last known price being ',pricetime0)
 
 LongRun(1000,predictionperiod)
 
