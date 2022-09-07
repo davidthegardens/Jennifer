@@ -51,12 +51,13 @@ def GetData():
     interval=st.norm.interval(confidence=0.999999999, loc=np.mean(pctchange), scale=st.sem(pctchange))
     print(interval)
     df['abnormal?']=(df['pctchange']<interval[0]) | (df['pctchange']>interval[1])
+    abnormallist=df['abnormal?'].to_list()
     print(df)
     lastofem=df['Close'].to_list()
     lastofem=lastofem[len(lastofem)-1]
     df['Date']=df.index
-    lastofemdate=df['Date'].to_list()
-    lastofemdate=lastofemdate[len(lastofemdate)-1]
+    datelist=df['Date'].to_list()
+    lastofemdate=datelist[len(datelist)-1]
     lastofemdate=ConvertToDateObj(str(lastofemdate).split(' ')[0])
     df2=df.loc[df['pctchange']<0]
     neglist=df2['pctchange'].to_list()
@@ -101,11 +102,11 @@ def GetData():
     BullGlueDuration=round(np.mean(BullGlue),0)
     BullGlueContagion=len(BullGlue)/len(poslist)
 
-    return lastofem,averageincrease+1,averagedecrease+1,increaserate,decreaserate,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf
+    return lastofem,averageincrease+1,averagedecrease+1,increaserate,decreaserate,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf,datelist,abnormallist,df
 
 
 
-#pricetime0,avgincrease,avgdecrease,increaseprobability,decreaseprobability,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf=GetData()
+pricetime0,avgincrease,avgdecrease,increaseprobability,decreaseprobability,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf,datelist,abnormallist,df=GetData()
 
 #print(BullGlueContagion,BearGlueContagion)
 #print(GetData())
@@ -261,16 +262,20 @@ def AbnormalSplit(SepList):
 #print(AbnormalSplit(TestAbnormalityList))
 #print(sum(TimeWeighting(5)))
 
-def Splitter(TargetList,SepLenList):
+def Splitter(TargetList,SepLenList,df):
     SplittedList=[]
     counter=0
+    dflist=[]
     for int in SepLenList:
         templist=[]
         for i in range(1,int+1):
             templist.append(TargetList[counter+(i-1)])
         SplittedList.append(templist)
         counter=counter+len(templist)
-    return SplittedList
+    
+    for listy in SplittedList:
+        tempdf=df[df['Date'].isin(listy)]
+        dflist.append(tempdf)
+    return dflist
 
-
-print(Splitter(TestAbnormalityList,AbnormalSplit(TestAbnormalityList)))
+print(Splitter(datelist,AbnormalSplit(abnormallist),df))
