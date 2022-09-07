@@ -25,15 +25,52 @@ import datetime
 #these models are better for long-term predictions whereby they do not take into consideration trends. Trends can be factored in using another algorithm ive been thinking of where we can demark changes in
 #the stocks behavior by looking at abnormal changes in volatility through hypothesis testing, then using this demarkation to determine the training data's timeframe, or even take a time based weighted average through multiple demarkations
 
+### ADD sensitivity toggling based on market capitalization
+
 def ConvertToDateObj(DateString):
     lillist=DateString.split('-')
     year,month,day=int(lillist[0]),int(lillist[1]),int(lillist[2])
     return datetime.date(year=year,month=month,day=day)
 
-predictiondate='2022-09-02'
-predictionperiod=10
-trainingperiod=10
-ticker="ETH-USD"
+def AbnormalSplit(SepList):
+    SepLenList=[]
+    counter=0
+    threshold=3
+    for i in SepList:
+        if i==True and counter>threshold:
+            SepLenList.append(counter)
+            counter=1
+            print('break')
+        else:
+            counter=counter+1
+            print(counter)
+    if sum(SepLenList)!=len(SepList):
+        SepLenList.append(counter)
+    return SepLenList
+
+#print(AbnormalSplit(TestAbnormalityList))
+#print(sum(TimeWeighting(5)))
+
+def Splitter(TargetList,SepLenList,df):
+    SplittedList=[]
+    counter=0
+    dflist=[]
+    for int in SepLenList:
+        templist=[]
+        for i in range(1,int+1):
+            templist.append(TargetList[counter+(i-1)])
+        SplittedList.append(templist)
+        counter=counter+len(templist)
+    
+    for listy in SplittedList:
+        tempdf=df[df['Date'].isin(listy)]
+        dflist.append(tempdf)
+    return dflist
+
+predictiondate='2022-09-06'
+predictionperiod=30
+trainingperiod=300
+ticker="ABNB"
 
 endtrainingperiod=ConvertToDateObj(predictiondate)-datetime.timedelta(days=predictionperiod)
 
@@ -76,7 +113,7 @@ def TimeWeightedData(listofdfs):
             templist.append(floater*Weighting[counter])
             counter=counter+1
         keyvalues.append(sum(templist))
-    return keyvalues
+    return keyvalues[0],keyvalues[1],keyvalues[2],keyvalues[3]
 
 
 
@@ -92,21 +129,18 @@ def GetData():
     print(interval)
     df['abnormal?']=(df['pctchange']<interval[0]) | (df['pctchange']>interval[1])
     abnormallist=df['abnormal?'].to_list()
-    print(df)
+    fulldf=df
     lastofem=df['Close'].to_list()
     lastofem=lastofem[len(lastofem)-1]
     df['Date']=df.index
     datelist=df['Date'].to_list()
+    averageincrease,averagedecrease,increaserate,decreaserate=TimeWeightedData(Splitter(datelist,AbnormalSplit(abnormallist),df))
     lastofemdate=datelist[len(datelist)-1]
     lastofemdate=ConvertToDateObj(str(lastofemdate).split(' ')[0])
     df2=df.loc[df['pctchange']<0]
     neglist=df2['pctchange'].to_list()
     df2=df.loc[df['pctchange']>=0]
     poslist=df2['pctchange'].to_list()
-    averageincrease=np.mean(poslist)
-    averagedecrease=np.mean(neglist)
-    increaserate=len(poslist)/len(pctchange)
-    decreaserate=1-increaserate
     print('it ran')
     gluelist=[]
     for x in pctchange:
@@ -263,46 +297,11 @@ def LongRun(passes,endtime):
     plt.show()
     print(np.mean(lastitemlist))
 
-#LongRun(1000,predictionperiod)
+LongRun(1000,predictionperiod)
 
 
 #print(TimeWeighting(5))
 
-TestAbnormalityList=[True,False,False,False,True,False,False,True,True,True,False,False,False,True]
 
-def AbnormalSplit(SepList):
-    SepLenList=[]
-    counter=0
-    threshold=2
-    for i in SepList:
-        if i==True and counter>threshold:
-            SepLenList.append(counter)
-            counter=1
-            print('break')
-        else:
-            counter=counter+1
-            print(counter)
-    if sum(SepLenList)!=len(TestAbnormalityList):
-        SepLenList.append(counter)
-    return SepLenList
 
-#print(AbnormalSplit(TestAbnormalityList))
-#print(sum(TimeWeighting(5)))
-
-def Splitter(TargetList,SepLenList,df):
-    SplittedList=[]
-    counter=0
-    dflist=[]
-    for int in SepLenList:
-        templist=[]
-        for i in range(1,int+1):
-            templist.append(TargetList[counter+(i-1)])
-        SplittedList.append(templist)
-        counter=counter+len(templist)
-    
-    for listy in SplittedList:
-        tempdf=df[df['Date'].isin(listy)]
-        dflist.append(tempdf)
-    return dflist
-
-print(TimeWeightedData(Splitter(datelist,AbnormalSplit(abnormallist),df)))
+#print(TimeWeightedData(Splitter(datelist,AbnormalSplit(abnormallist),df)))
