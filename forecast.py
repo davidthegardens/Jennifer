@@ -33,7 +33,7 @@ def ConvertToDateObj(DateString):
 predictiondate='2022-09-02'
 predictionperiod=10
 trainingperiod=10
-ticker="META"
+ticker="ETH-USD"
 
 endtrainingperiod=ConvertToDateObj(predictiondate)-datetime.timedelta(days=predictionperiod)
 
@@ -105,9 +105,9 @@ def GetData():
 
 
 
-pricetime0,avgincrease,avgdecrease,increaseprobability,decreaseprobability,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf=GetData()
+#pricetime0,avgincrease,avgdecrease,increaseprobability,decreaseprobability,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf=GetData()
 
-print(BullGlueContagion,BearGlueContagion)
+#print(BullGlueContagion,BearGlueContagion)
 #print(GetData())
 
 def GetDataPoints(datapoints):
@@ -222,19 +222,40 @@ def LongRun(passes,endtime):
     plt.show()
     print(np.mean(lastitemlist))
 
-LongRun(1000,predictionperiod)
+#LongRun(1000,predictionperiod)
 
 
-n=5
+
 def TimeWeighting(n):
-    n=len
+    TimeWeightSensitivity=2
     TimeWeighting=[]
     for int in range(1,n+1):
-        TimeWeighting.append(1/(2**int))
+        TimeWeighting.append(1/(TimeWeightSensitivity**int))
     Remainder=(1-sum(TimeWeighting))/n
     templist=[]
     for i in TimeWeighting:
         templist.append(i+Remainder)
+    templist.sort()
     return templist
 
+#print(TimeWeighting(5))
+
+TestAbnormalityList=[True,False,False,False,True,False,False,True,True,True,False,False,False,True]
+
+def AbnormalSplit(SepList):
+    SepLenList=[]
+    counter=0
+    threshold=2
+    for i in SepList:
+        if i==True and counter>threshold:
+            SepLenList.append(counter)
+            counter=1
+            print('break')
+        else:
+            counter=counter+1
+            print(counter)
+    if sum(SepLenList)!=len(TestAbnormalityList):
+        SepLenList.append(counter)
+    return SepLenList
+print(AbnormalSplit(TestAbnormalityList))
 #print(sum(TimeWeighting(5)))
