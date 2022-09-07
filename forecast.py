@@ -257,5 +257,20 @@ def AbnormalSplit(SepList):
     if sum(SepLenList)!=len(TestAbnormalityList):
         SepLenList.append(counter)
     return SepLenList
-print(AbnormalSplit(TestAbnormalityList))
+
+#print(AbnormalSplit(TestAbnormalityList))
 #print(sum(TimeWeighting(5)))
+
+def Splitter(TargetList,SepLenList):
+    SplittedList=[]
+    counter=0
+    for int in SepLenList:
+        templist=[]
+        for i in range(1,int+1):
+            templist.append(TargetList[counter+(i-1)])
+        SplittedList.append(templist)
+        counter=counter+len(templist)
+    return SplittedList
+
+
+print(Splitter(TestAbnormalityList,AbnormalSplit(TestAbnormalityList)))
