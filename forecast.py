@@ -1,10 +1,11 @@
+from sqlite3 import Date
 import numpy as np
 import scipy.stats as st
 import matplotlib.pyplot as plt
 import random
 import yfinance as yf
 import pandas as pd
-
+import datetime
 
 #this algorithm/model is created based on the initial idea/assumption that at every point in time (n) point a stock has a 50/50 chance of increasing or decreasing by 1%.
 #if the prior model is created mathematically, you will end up with a problem which is computationally inpheasible (2^n). However, you will also find that the confidence intervals at each point in time,
@@ -25,21 +26,39 @@ import pandas as pd
 #these models are better for long-term predictions whereby they do not take into consideration trends. Trends can be factored in using another algorithm ive been thinking of where we can demark changes in
 #the stocks behavior by looking at abnormal changes in volatility through hypothesis testing, then using this demarkation to determine the training data's timeframe, or even take a time based weighted average through multiple demarkations
 
-trainingcutoff='2021-01-20'
+def ConvertToDateObj(DateString):
+    lillist=DateString.split('-')
+    year,month,day=int(lillist[0]),int(lillist[1]),int(lillist[2])
+    return datetime.date(year=year,month=month,day=day)
+
+predictiondate='2022-09-02'
+predictionperiod=10
+trainingperiod=10
+ticker="META"
+
+endtrainingperiod=ConvertToDateObj(predictiondate)-datetime.timedelta(days=predictionperiod)
+
+starttrainingperiod=endtrainingperiod-datetime.timedelta(days=trainingperiod)
 
 
 def GetData():
     print('why are u running')
-    data = yf.download(tickers="GME",start='2021-01-01',end=trainingcutoff)#,interval="1m")
+    data = yf.download(tickers=ticker,start=str(starttrainingperiod),end=str(ConvertToDateObj(predictiondate)+datetime.timedelta(days=1)))#,interval="1m")
     df=pd.DataFrame(data=data)
+    actualsdf=df.tail(predictionperiod)
+    df.drop(df.tail(predictionperiod).index,inplace = True)
     df['pctchange']=(df.Close-df.Open)/df.Open
     pctchange=df['pctchange'].to_list()
-    interval=st.norm.interval(confidence=0.99999, loc=np.mean(pctchange), scale=st.sem(pctchange))
+    interval=st.norm.interval(confidence=0.999999999, loc=np.mean(pctchange), scale=st.sem(pctchange))
     print(interval)
     df['abnormal?']=(df['pctchange']<interval[0]) | (df['pctchange']>interval[1])
     print(df)
     lastofem=df['Close'].to_list()
     lastofem=lastofem[len(lastofem)-1]
+    df['Date']=df.index
+    lastofemdate=df['Date'].to_list()
+    lastofemdate=lastofemdate[len(lastofemdate)-1]
+    lastofemdate=ConvertToDateObj(str(lastofemdate).split(' ')[0])
     df2=df.loc[df['pctchange']<0]
     neglist=df2['pctchange'].to_list()
     df2=df.loc[df['pctchange']>=0]
@@ -83,12 +102,13 @@ def GetData():
     BullGlueDuration=round(np.mean(BullGlue),0)
     BullGlueContagion=len(BullGlue)/len(poslist)
 
-    return lastofem,averageincrease+1,averagedecrease+1,increaserate,decreaserate,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion
+    return lastofem,averageincrease+1,averagedecrease+1,increaserate,decreaserate,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf
 
 
 
-pricetime0,avgincrease,avgdecrease,increaseprobability,decreaseprobability,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion=GetData()
+pricetime0,avgincrease,avgdecrease,increaseprobability,decreaseprobability,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf=GetData()
 
+print(BullGlueContagion,BearGlueContagion)
 #print(GetData())
 
 def GetDataPoints(datapoints):
@@ -148,11 +168,16 @@ def PlotIt(Endtime):
 
 def LongRun(passes,endtime):
     print('getting to work...')
+    df=actualsdf
+    df['Date']=df.index
+    xaxis=df['Date'].to_list()
+
     lastitemlist=[]
     BearTimeout=0
     BearMode=False
     BullTimeout=0
     BullMode=False
+    
     for intmain in range(passes):
         
         if random.uniform(0,1) >=increaseprobability:
@@ -191,10 +216,26 @@ def LongRun(passes,endtime):
             newval=templist[len(templist)-1]*change
             templist.append(newval)
         lastitemlist.append(newval)
-        plt.plot(range(endtime),templist,label='intmain')
+        plt.plot(xaxis,templist,label='intmain')
+
     plt.show()
     plt.hist(lastitemlist)
     plt.show()
     print(np.mean(lastitemlist))
 
-LongRun(1000,30)
+LongRun(1000,predictionperiod)
+
+
+n=5
+def TimeWeighting(n):
+    n=len
+    TimeWeighting=[]
+    for int in range(1,n+1):
+        TimeWeighting.append(1/(2**int))
+    Remainder=(1-sum(TimeWeighting))/n
+    templist=[]
+    for i in TimeWeighting:
+        templist.append(i+Remainder)
+    return templist
+
+#print(sum(TimeWeighting(5)))
