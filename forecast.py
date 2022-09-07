@@ -39,6 +39,22 @@ endtrainingperiod=ConvertToDateObj(predictiondate)-datetime.timedelta(days=predi
 
 starttrainingperiod=endtrainingperiod-datetime.timedelta(days=trainingperiod)
 
+def TimeWeightedData(listofdfs):
+    avginclist=[]
+    avgdeclist=[]
+    incratelist=[]
+    decratelist=[]
+    for df in listofdfs:
+        pctchange=df['pctchange'].to_list()
+        df2=df.loc[df['pctchange']<0]
+        neglist=df2['pctchange'].to_list()
+        df2=df.loc[df['pctchange']>=0]
+        poslist=df2['pctchange'].to_list()
+        avginclist.append(np.mean(poslist))
+        avgdeclist.append(np.mean(neglist))
+        incratelist(len(poslist)/len(pctchange))
+        decratelist.append((1-(len(poslist)/len(pctchange))))
+    return avginclist,avgdeclist,incratelist,decratelist
 
 def GetData():
     print('why are u running')
