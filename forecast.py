@@ -1,3 +1,4 @@
+from cmath import isnan, nan
 import numpy as np
 import scipy.stats as st
 import matplotlib.pyplot as plt
@@ -25,7 +26,7 @@ import datetime
 #these models are better for long-term predictions whereby they do not take into consideration trends. Trends can be factored in using another algorithm ive been thinking of where we can demark changes in
 #the stocks behavior by looking at abnormal changes in volatility through hypothesis testing, then using this demarkation to determine the training data's timeframe, or even take a time based weighted average through multiple demarkations
 
-### ADD sensitivity toggling based on market capitalization
+### ADD sensitivity toggling based on market capitalization and len(abnormality periods)
 
 def ConvertToDateObj(DateString):
     lillist=DateString.split('-')
@@ -77,7 +78,7 @@ endtrainingperiod=ConvertToDateObj(predictiondate)-datetime.timedelta(days=predi
 starttrainingperiod=endtrainingperiod-datetime.timedelta(days=trainingperiod)
 
 def TimeWeighting(n):
-    TimeWeightSensitivity=2
+    TimeWeightSensitivity=10
     TimeWeighting=[]
     for int in range(1,n+1):
         TimeWeighting.append(1/(TimeWeightSensitivity**int))
@@ -112,7 +113,10 @@ def TimeWeightedData(listofdfs):
         for floater in listy:
             templist.append(floater*Weighting[counter])
             counter=counter+1
-        keyvalues.append(sum(templist))
+        entry=sum(templist)
+        if np.isnan(entry):
+            entry=0
+        keyvalues.append(entry)
     return keyvalues[0],keyvalues[1],keyvalues[2],keyvalues[3]
 
 
@@ -130,16 +134,16 @@ def GetData():
     df['abnormal?']=(df['pctchange']<interval[0]) | (df['pctchange']>interval[1])
     abnormallist=df['abnormal?'].to_list()
     fulldf=df
-    lastofem=df['Close'].to_list()
+    lastofem=fulldf['Close'].to_list()
     lastofem=lastofem[len(lastofem)-1]
-    df['Date']=df.index
-    datelist=df['Date'].to_list()
-    averageincrease,averagedecrease,increaserate,decreaserate=TimeWeightedData(Splitter(datelist,AbnormalSplit(abnormallist),df))
+    fulldf['Date']=df.index
+    datelist=fulldf['Date'].to_list()
+    averageincrease,averagedecrease,increaserate,decreaserate=TimeWeightedData(Splitter(datelist,AbnormalSplit(abnormallist),fulldf))
     lastofemdate=datelist[len(datelist)-1]
     lastofemdate=ConvertToDateObj(str(lastofemdate).split(' ')[0])
-    df2=df.loc[df['pctchange']<0]
+    df2=fulldf.loc[fulldf['pctchange']<0]
     neglist=df2['pctchange'].to_list()
-    df2=df.loc[df['pctchange']>=0]
+    df2=fulldf.loc[fulldf['pctchange']>=0]
     poslist=df2['pctchange'].to_list()
     print('it ran')
     gluelist=[]
@@ -181,7 +185,7 @@ def GetData():
 
 
 pricetime0,avgincrease,avgdecrease,increaseprobability,decreaseprobability,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf,datelist,abnormallist,df=GetData()
-
+print('pricetime0->',pricetime0,avgincrease,avgdecrease,increaseprobability,decreaseprobability,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf,datelist,abnormallist,df)
 #print(BullGlueContagion,BearGlueContagion)
 #print(GetData())
 
