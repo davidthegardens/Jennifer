@@ -5,6 +5,11 @@ import random
 import yfinance as yf
 import pandas as pd
 import datetime
+from contextlib import contextmanager
+import sys
+import os
+
+pd.options.mode.chained_assignment = None
 
 #this algorithm/model is created based on the initial idea/assumption that at every point in time (n) point a stock has a 50/50 chance of increasing or decreasing by 1%.
 #if the prior model is created mathematically, you will end up with a problem which is computationally inpheasible (2^n). However, you will also find that the confidence intervals at each point in time,
@@ -128,7 +133,7 @@ def GetData(TimeWeightSensitivity,predictiondate,predictionperiod,ticker):
     endtrainingperiod=ConvertToDateObj(predictiondate)-datetime.timedelta(days=predictionperiod)
     starttrainingperiod=endtrainingperiod-datetime.timedelta(days=trainingperiod)
     print('why are u running')
-    data = yf.download(tickers=ticker,start=str(starttrainingperiod),end=str(ConvertToDateObj(predictiondate)+datetime.timedelta(days=1)))#,interval="1m")
+    data = yf.download(progress=False,tickers=ticker,start=str(starttrainingperiod),end=str(ConvertToDateObj(predictiondate)+datetime.timedelta(days=1)))#,interval="1m")
     df=pd.DataFrame(data=data)
     df=df.dropna()
     actualsdf=df.tail(predictionperiod)
@@ -317,6 +322,8 @@ def LongRun(passes,endtime,plot,pricetime0,avgincrease,avgdecrease,increaseproba
     elif Result>High:
         Miss=(Result-High)/High
         Accuracy=1-Miss
+    else:
+        print(High,Low,Result,lastitemlist)
     if plot==True:
         print(Result,' on ',predictiondate,' using ',predictionperiod,' days blinded with last known price being ',pricetime0, 'the price ranged from ',Low,' to ',High,'. Accuracy is ',Accuracy)
     return Accuracy
@@ -330,13 +337,14 @@ def OptimalSensitivity(Ticker,PredictionPeriod,TestDepth):
         TempTestResults=[]
         for i in range(1,TestDepth):
 
-            Predictiondate=str(datetime.date.today()-datetime.timedelta(days=random.choice(range(7,1000))))
+            Predictiondate=str(datetime.date.today()-datetime.timedelta(days=random.choice(range(1,1000))))
 
             #Predictiondate=Predictiondate.strftime("%d/%m/%Y")
             pricetime0,avgincrease,avgdecrease,increaseprobability,decreaseprobability,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf,datelist,abnormallist,df=GetData(Sensitivity,Predictiondate,PredictionPeriod,Ticker)
             TempTestResults.append(LongRun(100,PredictionPeriod,False,pricetime0,avgincrease,avgdecrease,increaseprobability,decreaseprobability,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf,datelist,abnormallist,df,Predictiondate,PredictionPeriod))
         TestResults.append(np.mean(TempTestResults))
-    return TestResults,TimeWeightSensitivity
+    OptimalSensitivity=TestResults.index(max(TestResults))+1
+    return TestResults,OptimalSensitivity
     
 #print(TimeWeighting(5))
 
