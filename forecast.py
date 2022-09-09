@@ -1,4 +1,3 @@
-from cmath import isnan, nan
 import numpy as np
 import scipy.stats as st
 import matplotlib.pyplot as plt
@@ -67,17 +66,14 @@ def Splitter(TargetList,SepLenList,df):
         dflist.append(tempdf)
     return dflist
 
-predictiondate='2022-08-05'
+predictiondate='2022-09-06'
 predictionperiod=30
 trainingperiod=600
-ticker="MSFT"
-
+ticker="GE"
 endtrainingperiod=ConvertToDateObj(predictiondate)-datetime.timedelta(days=predictionperiod)
-
 starttrainingperiod=endtrainingperiod-datetime.timedelta(days=trainingperiod)
 
-def TimeWeighting(n):
-    TimeWeightSensitivity=5
+def TimeWeighting(n,TimeWeightSensitivity):
     TimeWeighting=[]
     for int in range(1,n+1):
         TimeWeighting.append(1/(TimeWeightSensitivity**int))
@@ -88,7 +84,7 @@ def TimeWeighting(n):
     templist.sort()
     return templist
 
-def TimeWeightedData(listofdfs):
+def TimeWeightedData(listofdfs,TimeWeightSensitivity):
     avginclist=[]
     avgdeclist=[]
     incratelist=[]
@@ -105,7 +101,7 @@ def TimeWeightedData(listofdfs):
         decratelist.append((1-(len(poslist)/len(pctchange))))
     keydata=[avginclist,avgdeclist,incratelist,decratelist]
     keyvalues=[]
-    Weighting=TimeWeighting(len(avginclist))
+    Weighting=TimeWeighting(len(avginclist),TimeWeightSensitivity)
     for listy in keydata:
         counter=0
         templist=[]
@@ -125,7 +121,10 @@ def TimeWeightedData(listofdfs):
 
 
 
-def GetData():
+def GetData(TimeWeightSensitivity,predictiondate,predictionperiod,ticker):
+    trainingperiod=600
+    endtrainingperiod=ConvertToDateObj(predictiondate)-datetime.timedelta(days=predictionperiod)
+    starttrainingperiod=endtrainingperiod-datetime.timedelta(days=trainingperiod)
     print('why are u running')
     data = yf.download(tickers=ticker,start=str(starttrainingperiod),end=str(ConvertToDateObj(predictiondate)+datetime.timedelta(days=1)))#,interval="1m")
     df=pd.DataFrame(data=data)
@@ -142,7 +141,7 @@ def GetData():
     lastofem=lastofem[len(lastofem)-1]
     fulldf['Date']=df.index
     datelist=fulldf['Date'].to_list()
-    averageincrease,averagedecrease,increaserate,decreaserate=TimeWeightedData(Splitter(datelist,AbnormalSplit(abnormallist),fulldf))
+    averageincrease,averagedecrease,increaserate,decreaserate=TimeWeightedData(Splitter(datelist,AbnormalSplit(abnormallist),fulldf),TimeWeightSensitivity)
     lastofemdate=datelist[len(datelist)-1]
     lastofemdate=ConvertToDateObj(str(lastofemdate).split(' ')[0])
     df2=fulldf.loc[fulldf['pctchange']<0]
@@ -188,17 +187,17 @@ def GetData():
 
 
 
-pricetime0,avgincrease,avgdecrease,increaseprobability,decreaseprobability,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf,datelist,abnormallist,df=GetData()
+#pricetime0,avgincrease,avgdecrease,increaseprobability,decreaseprobability,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf,datelist,abnormallist,df=GetData()
 #print(BullGlueContagion,BearGlueContagion)
 #print(GetData())
 
-def GetDataPoints(datapoints):
+def GetDataPoints(datapoints,avgincrease,avgdecrease):
     templist=[]
     for price in datapoints:
         templist.extend([price*avgincrease,price*avgdecrease])
     return templist
 
-def GetDataPointsAtTime(time):
+def GetDataPointsAtTime(time,pricetime0):
     datapoints=[pricetime0]
     for int in range(time):
         datapoints=GetDataPoints(datapoints)
@@ -247,7 +246,7 @@ def PlotIt(Endtime):
 
 #PlotIt(20)
 
-def LongRun(passes,endtime):
+def LongRun(passes,endtime,plot,pricetime0,avgincrease,avgdecrease,increaseprobability,decreaseprobability,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf,datelist,abnormallist,df):
     print('getting to work...')
     df=actualsdf
     df['Date']=df.index
@@ -297,11 +296,12 @@ def LongRun(passes,endtime):
             newval=templist[len(templist)-1]*change
             templist.append(newval)
         lastitemlist.append(newval)
-        plt.plot(xaxis,templist,label='intmain')
-
-    plt.show()
-    plt.hist(lastitemlist)
-    plt.show()
+        if plot==True:
+            plt.plot(xaxis,templist,label='intmain')
+    if plot==True:
+        plt.show()
+        plt.hist(lastitemlist)
+        plt.show()
     df=df.loc[df['Date']==predictiondate]
     High=df['High'].to_list()[0]
     Low=df['Low'].to_list()[0]
@@ -315,12 +315,26 @@ def LongRun(passes,endtime):
         Miss=(Result-High)/High
         Accuracy=1-Miss
     print(Result,' on ',predictiondate,' using ',predictionperiod,' days blinded with last known price being ',pricetime0, 'the price ranged from ',Low,' to ',High,'. Accuracy is ',Accuracy)
+    return Accuracy
 
-LongRun(1000,predictionperiod)
+#LongRun(1000,predictionperiod,False)
 
+def OptimalSensitivity(Ticker,PredictionPeriod,TestDepth):
+    TimeWeightSensitivity=range(1,20)
+    TestResults=[]
+    for Sensitivity in TimeWeightSensitivity:
+        TempTestResults=[]
+        for i in range(1,TestDepth):
 
+            Predictiondate=str(datetime.date.today()-datetime.timedelta(days=random.choice(range(1000))))
+            #Predictiondate=Predictiondate.strftime("%d/%m/%Y")
+            pricetime0,avgincrease,avgdecrease,increaseprobability,decreaseprobability,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf,datelist,abnormallist,df=GetData(Sensitivity,Predictiondate,PredictionPeriod,Ticker)
+            TempTestResults.append(LongRun(100,PredictionPeriod,False,pricetime0,avgincrease,avgdecrease,increaseprobability,decreaseprobability,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf,datelist,abnormallist,df))
+        TestResults.append(np.mean(TempTestResults))
+    return TestResults,TimeWeightSensitivity
+    
 #print(TimeWeighting(5))
 
-
+print(OptimalSensitivity('MSFT',30,10))
 
 #print(TimeWeightedData(Splitter(datelist,AbnormalSplit(abnormallist),df)))
