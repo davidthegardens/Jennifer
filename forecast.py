@@ -3,11 +3,15 @@ import scipy.stats as st
 import matplotlib.pyplot as plt
 import random
 import yfinance as yf
+import warnings
+warnings.simplefilter(action='ignore', category=RuntimeWarning)
 import pandas as pd
 import datetime
 from contextlib import contextmanager
 import sys
 import os
+
+
 
 pd.options.mode.chained_assignment = None
 
@@ -100,10 +104,19 @@ def TimeWeightedData(listofdfs,TimeWeightSensitivity):
         neglist=df2['pctchange'].to_list()
         df2=df.loc[df['pctchange']>=0]
         poslist=df2['pctchange'].to_list()
-        avginclist.append(np.mean(poslist))
-        avgdeclist.append(np.mean(neglist))
-        incratelist.append((len(poslist)/len(pctchange)))
-        decratelist.append((1-(len(poslist)/len(pctchange))))
+        if len(poslist)==0:
+            avginclist.append(0)
+            incratelist.append(0)
+        else:
+            avginclist.append(np.mean(poslist))
+            incratelist.append((len(poslist)/len(pctchange)))
+        if len(neglist)==0:
+            avgdeclist.append(0)
+            decratelist.append(0)
+        else:
+            avgdeclist.append(np.mean(neglist))
+            decratelist.append((1-(len(poslist)/len(pctchange))))
+       
     keydata=[avginclist,avgdeclist,incratelist,decratelist]
     keyvalues=[]
     Weighting=TimeWeighting(len(avginclist),TimeWeightSensitivity)
@@ -132,7 +145,7 @@ def GetData(TimeWeightSensitivity,predictiondate,predictionperiod,ticker):
     trainingperiod=600
     endtrainingperiod=ConvertToDateObj(predictiondate)-datetime.timedelta(days=predictionperiod)
     starttrainingperiod=endtrainingperiod-datetime.timedelta(days=trainingperiod)
-    print('why are u running')
+    #print('why are u running')
     data = yf.download(progress=False,tickers=ticker,start=str(starttrainingperiod),end=str(ConvertToDateObj(predictiondate)+datetime.timedelta(days=1)))#,interval="1m")
     df=pd.DataFrame(data=data)
     df=df.dropna()
@@ -186,11 +199,23 @@ def GetData(TimeWeightSensitivity,predictiondate,predictionperiod,ticker):
                 BearStickiness=2
         counter=counter+1
     #print(BearGlue,BullGlue)
-    BearGlueDuration=round(np.mean(BearGlue),0)
-    BearGlueContagion=len(BearGlue)/len(neglist)
-    BullGlueDuration=round(np.mean(BullGlue),0)
-    BullGlueContagion=len(BullGlue)/len(poslist)
-    print('it ran')
+    if len(BearGlue)==0:
+        BearGlueDuration=2
+    else:
+        BearGlueDuration=round(np.mean(BearGlue),0)
+    if len(BullGlue)==0:
+        BullGlueDuration=2
+    else:
+        BullGlueDuration=round(np.mean(BullGlue),0)
+    if len(neglist)==0:
+        BearGlueContagion=0
+    else:
+        BearGlueContagion=len(BearGlue)/len(neglist)
+    if len(poslist)==0:
+        BullGlueContagion=0
+    else:
+        BullGlueContagion=len(BullGlue)/len(poslist)
+    #print('it ran')
     return lastofem,averageincrease+1,averagedecrease+1,increaserate,decreaserate,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf,datelist,abnormallist,df
 
 
@@ -254,8 +279,8 @@ def PlotIt(Endtime):
 
 #PlotIt(20)
 
-def LongRun(passes,endtime,plot,pricetime0,avgincrease,avgdecrease,increaseprobability,decreaseprobability,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf,datelist,abnormallist,df,predictiondate,predictionperiod):
-    print('getting to work...')
+def LongRun(passes,endtime,plot,pricetime0,avgincrease,avgdecrease,increaseprobability,decreaseprobability,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf,datelist,abnormallist,df,predictiondate):
+    #print('getting to work...')
     df=actualsdf
     df['Date']=df.index
     xaxis=df['Date'].to_list()
@@ -323,10 +348,14 @@ def LongRun(passes,endtime,plot,pricetime0,avgincrease,avgdecrease,increaseproba
         Miss=(Result-High)/High
         Accuracy=1-Miss
     else:
-        print(High,Low,Result,lastitemlist)
+        print(High,Low,Result,lastitemlist,change)
     if plot==True:
-        print(Result,' on ',predictiondate,' using ',predictionperiod,' days blinded with last known price being ',pricetime0, 'the price ranged from ',Low,' to ',High,'. Accuracy is ',Accuracy)
-    return Accuracy
+        print(Result,' on ',predictiondate,' using ',endtime,' days blinded with last known price being ',pricetime0, 'the price ranged from ',Low,' to ',High,'. Accuracy is ',Accuracy)
+    print(Accuracy,predictiondate)
+    if plot==True:
+        return Result,Accuracy
+    else:
+        return Accuracy
 
 #LongRun(1000,predictionperiod,False)
 
@@ -341,13 +370,20 @@ def OptimalSensitivity(Ticker,PredictionPeriod,TestDepth):
 
             #Predictiondate=Predictiondate.strftime("%d/%m/%Y")
             pricetime0,avgincrease,avgdecrease,increaseprobability,decreaseprobability,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf,datelist,abnormallist,df=GetData(Sensitivity,Predictiondate,PredictionPeriod,Ticker)
-            TempTestResults.append(LongRun(100,PredictionPeriod,False,pricetime0,avgincrease,avgdecrease,increaseprobability,decreaseprobability,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf,datelist,abnormallist,df,Predictiondate,PredictionPeriod))
+            TempTestResults.append(LongRun(100,PredictionPeriod,False,pricetime0,avgincrease,avgdecrease,increaseprobability,decreaseprobability,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf,datelist,abnormallist,df,Predictiondate))
+            print(TempTestResults)
         TestResults.append(np.mean(TempTestResults))
+        print('Bing Bong--->',TestResults)
     OptimalSensitivity=TestResults.index(max(TestResults))+1
     return TestResults,OptimalSensitivity
     
 #print(TimeWeighting(5))
 
-print(OptimalSensitivity('MSFT',30,10))
+TestResults,OptimalSensitivityMeas=OptimalSensitivity('MSFT',30,10)
+pricetime0,avgincrease,avgdecrease,increaseprobability,decreaseprobability,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf,datelist,abnormallist,df=GetData(OptimalSensitivityMeas,'2022-09-08',30,'MSFT')
+Result=LongRun(1000,30,True,pricetime0,avgincrease,avgdecrease,increaseprobability,decreaseprobability,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf,datelist,abnormallist,df,'2022-09-08')
+SafeRange=[max(TestResults)*Result,Result,(2-max(TestResults))*Result]
+
+
 
 #print(TimeWeightedData(Splitter(datelist,AbnormalSplit(abnormallist),df)))
