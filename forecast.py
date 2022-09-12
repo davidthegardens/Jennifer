@@ -20,21 +20,11 @@ pd.options.mode.chained_assignment = None
 #become increasingly "precise" or "certain" as time increases due to the expanding nature of the dataset. The PlotIt() function creates the theorized model above, with endtime, beginning price, and average increase/decrease parameterized.
 #LongRun() simulates n passes of randomized "1%" increases/decreases over a parameterised period of time
 
+#
+
 #im fairly confident that the equations arrived at in the plotit function can be generalized mathematically. That will be completed at a later date.
 
-#avgincrease=1.011267632
-#avgdecrease=0.9870758867
-#pricetime0=52.58
-#increaseprobability=0.5454545455
-#decreaseprobability=1-increaseprobability
-####    7 months of training with a 30 day prediction time resulted in a $0.01 discrepency in predicted and actual of MSFT on the exact day being predicted for
-####    this is probably a coincidence but I decided to take note since nothing was tuned for this result, i simply picked the training parameters and dates somewhat randomly.
-####    this occured with the first implementation of bear/bull glue in the LongRun function using 1000 passes. I will upload to git on this commit to track further successes
 
-#these models are better for long-term predictions whereby they do not take into consideration trends. Trends can be factored in using another algorithm ive been thinking of where we can demark changes in
-#the stocks behavior by looking at abnormal changes in volatility through hypothesis testing, then using this demarkation to determine the training data's timeframe, or even take a time based weighted average through multiple demarkations
-
-### ADD sensitivity toggling based on volatility, pltr works well with 1.1, MSFT with 5
 def ConvertToDateObj(DateString):
     lillist=DateString.split('-')
     year,month,day=int(lillist[0]),int(lillist[1]),int(lillist[2])
@@ -375,12 +365,14 @@ def OptimalSensitivity(Ticker,PredictionPeriod,TestDepth):
     return TestResults,OptimalSensitivity
     
 #print(TimeWeighting(5))
+def AnalyzeThis(Ticker,FinalDate,DaysBlinded):
+    TestResults,OptimalSensitivityMeas=OptimalSensitivity(Ticker,DaysBlinded,10)
+    pricetime0,avgincrease,avgdecrease,increaseprobability,decreaseprobability,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf,datelist,abnormallist,df=GetData(OptimalSensitivityMeas,FinalDate,DaysBlinded,Ticker)
+    Result=LongRun(1000,DaysBlinded,True,pricetime0,avgincrease,avgdecrease,increaseprobability,decreaseprobability,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf,datelist,abnormallist,df,FinalDate)
+    print(Result)
+    #SafeRange=[max(TestResults)*Result,Result,(2-max(TestResults))*Result]
 
-TestResults,OptimalSensitivityMeas=OptimalSensitivity('MSFT',30,10)
-pricetime0,avgincrease,avgdecrease,increaseprobability,decreaseprobability,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf,datelist,abnormallist,df=GetData(OptimalSensitivityMeas,'2022-09-08',30,'MSFT')
-Result=LongRun(1000,30,True,pricetime0,avgincrease,avgdecrease,increaseprobability,decreaseprobability,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf,datelist,abnormallist,df,'2022-09-08')
-SafeRange=[max(TestResults)*Result,Result,(2-max(TestResults))*Result]
-
+AnalyzeThis('ETH-USD','2022-09-12',15)
 
 
 #print(TimeWeightedData(Splitter(datelist,AbnormalSplit(abnormallist),df)))
