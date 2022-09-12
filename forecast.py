@@ -365,10 +365,7 @@ def OptimalSensitivity(Ticker,PredictionPeriod,TestDepth):
     for Sensitivity in TimeWeightSensitivity:
         TempTestResults=[]
         for i in range(1,TestDepth):
-
-            Predictiondate=str(datetime.date.today()-datetime.timedelta(days=random.choice(range(1,1000))))
-
-            #Predictiondate=Predictiondate.strftime("%d/%m/%Y")
+            Predictiondate=str(datetime.date.today()-datetime.timedelta(days=random.choice(range(1,100))))
             pricetime0,avgincrease,avgdecrease,increaseprobability,decreaseprobability,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf,datelist,abnormallist,df=GetData(Sensitivity,Predictiondate,PredictionPeriod,Ticker)
             TempTestResults.append(LongRun(100,PredictionPeriod,False,pricetime0,avgincrease,avgdecrease,increaseprobability,decreaseprobability,BearGlueDuration,BearGlueContagion,BullGlueDuration,BullGlueContagion,lastofemdate,actualsdf,datelist,abnormallist,df,Predictiondate))
             print(TempTestResults)
